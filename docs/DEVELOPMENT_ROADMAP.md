@@ -1,6 +1,6 @@
 # ProofPulse Development Roadmap
 
-This roadmap describes planned work. Stage 0 documentation is complete with a conditional-go recommendation; no contract implementation or deployment is claimed.
+This roadmap tracks implemented and planned work. Stage 0B documented a conditional-go environment result; Stage 1 implementation is local-only and does not establish stable Studionet compatibility or deployment readiness.
 
 ## Stage 0: Technical feasibility and architecture
 
@@ -8,7 +8,7 @@ Confirm the supported GenLayer Intelligent Contract programming model, execution
 
 ## Stage 1: Obligation registry and lifecycle
 
-Design and implement obligation registration, requirement definitions, ownership or authorization rules, and explicit lifecycle transitions. Establish how updates, closure, and invalid transitions are handled while preserving a clear record of state changes.
+Implement deterministic obligation registration, immutable initial requirement/source-reference policy, owner authorization, bounded reads, and owner-only closure. **Status:** complete with conditional pass: 12 Direct Mode tests and GenVM lint/semantic validation pass. See [Stage 1 Implementation](STAGE_1_IMPLEMENTATION.md). Policy revisions, reopening, deletion, transfer, evidence evaluation, and outcome transitions remain deferred. Stable Studionet compatibility is unverified.
 
 ## Stage 2: AI-powered evidence verification
 

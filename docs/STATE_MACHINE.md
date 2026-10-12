@@ -1,17 +1,15 @@
-# ProofPulse State Machine (Stage 0)
+# ProofPulse State Machine (Stage 1 implementation plus future evaluation design)
 
-Proposed behavior only. State names below describe domain state; they are not GenLayer transaction lifecycle statuses.
+Obligation transitions below are implemented in Stage 1. Evaluation and observation transitions remain proposed future behavior. State names describe domain state; they are not GenLayer transaction lifecycle statuses.
 
 ## Obligation lifecycle
 
 ```text
-UNREGISTERED --register--> ACTIVE (policy version 1)
-ACTIVE --append policy version--> ACTIVE (new immutable version)
-ACTIVE --close by authorized actor--> CLOSED
-CLOSED --reopen only if explicitly allowed by policy--> ACTIVE (new lifecycle epoch)
+UNREGISTERED --register--> ACTIVE (immutable policy version 1)
+ACTIVE --close by owner--> CLOSED
 ```
 
-No transition edits or deletes an earlier policy or observation. Stage 1 should initially omit reopen unless a concrete use case requires it; this reduces lifecycle ambiguity. Closed obligations reject new evaluations.
+Stage 1 implements only these transitions. Policy revision and reopening are deferred: they require explicit version migration, authorization, and audit semantics before implementation. No policy or obligation deletion is allowed. Closed obligations reject lifecycle writes. Verification outcomes remain a separate future state dimension.
 
 ## Evaluation lifecycle
 

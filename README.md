@@ -14,7 +14,7 @@ ProofPulse is intended to make obligation status decisions more transparent and 
 - Record successive observations and evaluate compliance across multiple periods.
 - Return explicit outcomes and supporting reasoning that validators can assess.
 
-These are planned capabilities, not implemented or verified behavior. The Intelligent Contract has not yet been implemented or deployed.
+Stage 1 implements the deterministic obligation registry and lifecycle described in [Stage 1 Implementation](docs/STAGE_1_IMPLEMENTATION.md). Its local readiness is **conditional pass**: 12 Direct Mode tests and GenVM lint/semantic validation pass, while stable Studionet compatibility remains unverified. Evidence evaluation, provenance records, observation history, four-valued verification outcomes, and PoCC remain planned capabilities, not implemented behavior.
 
 ## Proof of Continuing Compliance
 
@@ -26,6 +26,6 @@ The project is designed for GenLayer Intelligent Contracts and GenLayer's valida
 
 ## Development status
 
-Stage 0 technical feasibility and architecture documentation is complete with a **conditional go** recommendation. No contract implementation, contract execution, successful tests, or deployment verification is claimed. **ProofPulse has not been deployed.**
+Stage 0 and Stage 0B documentation are complete with a **conditional go** recommendation for environment readiness. Stage 1 deterministic registry implementation and Direct Mode tests are complete. Stable Studionet compatibility remains unverified. **ProofPulse has not been deployed.**
 
 See [Project Vision](docs/PROJECT_VISION.md), [Development Roadmap](docs/DEVELOPMENT_ROADMAP.md), and the [Stage 0 Report](docs/STAGE_0_REPORT.md) for product scope, feasibility findings, and readiness gates.

@@ -1,6 +1,6 @@
 # ProofPulse Contract Architecture (Stage 0)
 
-This document proposes architecture only. It does not define an implemented ABI or claim that any contract execution has been tested.
+This document records the Stage 0 target architecture. Stage 1 implements only the bounded deterministic registry and lifecycle; see [Stage 1 Implementation](STAGE_1_IMPLEMENTATION.md) for its ABI and test evidence.
 
 ## Design decisions
 
@@ -16,7 +16,7 @@ This document proposes architecture only. It does not define an implemented ABI 
 ## Proposed components and data
 
 1. **Obligation registry.** A bounded `TreeMap[ObligationId, Obligation]` keyed by a deterministic ID. Store creator/authorized actors, subject identity/reference, lifecycle state, active policy version, and counters.
-2. **Immutable policy versions.** Each policy defines requirement identifiers and bounded descriptions, approved source rules, evaluation window/deadline rules, maximum evidence count/bytes, freshness constraints, and the consensus output schema. Store a canonical policy encoding and digest. Any update appends a new version; historical observations point to the exact version used.
+2. **Immutable policy versions.** The Stage 1 contract stores initial requirement descriptions and opaque approved-source references as immutable version 1. Future policies may define bounded source rules, evaluation windows, evidence limits, freshness constraints, and output schemas. Policy revision is deferred until version migration and authorization semantics are specified; do not infer that the Stage 1 registry implements revisions or policy digests.
 3. **Approved source set.** Policy records allowed schemes/hosts/path patterns and expected content types/fields where practicable. Do not accept arbitrary URLs as authority. DNS/IP rebinding and redirects remain a retrieval-layer risk requiring tool/runtime review.
 4. **Evidence manifest.** Bounded evidence records contain requested URL/source ID, normalized final URL if available, retrieval outcome, transaction observation time, source-claimed publication time (separate and explicitly untrusted), content digest, evidence type, and concise extracted facts. Keep raw content outside contract storage unless a later feasibility measurement justifies bounded on-chain storage.
 5. **Nondeterministic evaluator.** A local callback inside a write method fetches only policy-approved inputs through `gl.nondet.web.get` or `.render`, then calls `gl.nondet.exec_prompt` for a constrained classification/extraction task. It returns a small, schema-checked candidate. No storage writes occur inside this block.
