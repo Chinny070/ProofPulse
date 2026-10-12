@@ -1,36 +1,29 @@
 # ProofPulse
 
-ProofPulse is a standalone GenLayer Intelligent Contract for evaluating real-world obligations using AI-assisted evidence verification, web-based information, and validator consensus.
+ProofPulse is a standalone GenLayer Intelligent Contract for registering real-world obligations, checking approved external evidence with AI-assisted validator consensus, and summarizing compliance across sampled observation windows.
 
 ## Purpose
 
-ProofPulse aims to make obligation status decisions more transparent and repeatable. Owners register an obligation, its requirements, and an immutable list of approved sources. They can request an AI-assisted verification of those sources; actual multi-validator behavior has not yet been exercised in this repository.
+ProofPulse makes each verification traceable to an immutable obligation policy, approved sources, structured evidence assessments, and a transaction-time observation. Missing, unavailable, stale, ungrounded, or contradictory evidence must not be represented as a supported violation or fulfillment.
 
-## Implemented capabilities
+## Current capabilities
 
-- Register obligations, their requirements, owners, and relevant lifecycle state.
-- Retrieve only exact HTTPS URLs from an obligation's immutable approved-source list.
-- Assess evidence against requirements with bounded AI output and independently rerun assessment in a custom validator callback.
-- Record `FULFILLED`, `VIOLATED`, `INCONCLUSIVE`, or evidence-level `PENDING`, with bounded source references, body hashes, excerpts, and transaction timestamps.
-- Keep verification history append-only and bounded.
-
-## Planned capabilities
-
-- Evidence freshness and fuller provenance rules.
-- Proof of Continuing Compliance (PoCC) across defined observation periods.
-
-Stage 1 implements the deterministic registry and lifecycle. Stage 2 implements owner-triggered evidence assessment and records. Stage 2 has a **conditional pass** based on Direct Mode mocks and local GenVM linting; real validator consensus and stable Studionet execution remain unverified. See [Stage 1 Implementation](docs/STAGE_1_IMPLEMENTATION.md) and [Stage 2 Implementation](docs/STAGE_2_IMPLEMENTATION.md). PoCC remains planned and is not implemented.
+- Register bounded obligations with owner authorization, immutable version 1 requirements/source policy, and an `ACTIVE` → `CLOSED` lifecycle.
+- Retrieve only policy-approved HTTPS URLs and request structured AI assessments within GenLayer's nondeterministic execution boundary.
+- Reassess independently in a custom validator callback and compare decision-critical outcome, requirement statuses, evidence kinds, source identities, and grounded excerpts.
+- Record `FULFILLED`, `VIOLATED`, `INCONCLUSIVE`, or evidence-level `PENDING` outcomes, policy and evidence-manifest SHA-256 commitments, source references, body byte counts, observation windows, and transaction timestamps.
+- Enforce unique verification IDs, one accepted sample per time window, bounded histories, and deterministic PoCC summaries with explicit missing-window counts.
 
 ## Proof of Continuing Compliance
 
-Proof of Continuing Compliance (PoCC) is ProofPulse's defining concept: compliance is assessed over multiple observation periods rather than inferred from a single snapshot. Each observation contributes to a history of whether an obligation continued to satisfy its requirements. The contract is intended to distinguish sustained compliance from a one-time result and to represent missing, conflicting, or insufficient evidence explicitly.
+PoCC summarizes only the observation windows due under an obligation's configured period. A `FULFILLED` summary means each due sampled window has an accepted `FULFILLED` record; it does not establish what happened between observations. A missing window, uncertain record, or contradictory evidence prevents an overall fulfillment claim. Source publication dates are not trusted; timestamps refer to the GenLayer transaction context.
 
-## Technology
+## Technology and boundaries
 
-The project is designed for GenLayer Intelligent Contracts and GenLayer's validator consensus, with AI-assisted evaluation and access to web-based information as part of evidence assessment. Development and deployment will use the GenLayer toolchain and a GenLayer network environment. Specific interfaces and execution details will be established during technical feasibility work; no mock blockchain is in scope.
+The implementation uses GenLayer's Python Intelligent Contract model, typed persistent storage, public view/write methods, `gl.nondet.web.get`, `gl.nondet.exec_prompt`, and `gl.vm.run_nondet_unsafe`. It is one standalone contract: there is no frontend, dashboard, mock blockchain, or required cross-contract dependency. Direct Mode tests mock web/LLM calls; they do not establish genuine validator consensus.
 
 ## Development status
 
-Stages 0 and 0B documentation are complete; Stages 1 and 2 are implemented with conditional local readiness. Real consensus and stable Studionet compatibility remain unverified. **ProofPulse has not been deployed.**
+Stages 0–5 now have feasibility, implementation, and local security/regression documentation. Current local checks pass, but the installed CLI (`0.40.0-rc.3`) belongs to the Consensus v0.6 release-candidate line and is not a verified compatible toolchain for stable Studionet with the installed `genlayer-py 0.16.3` / `genlayer-test 0.29.2`. The Studionet network definition was confirmed in an isolated CLI profile as alias `studionet`, RPC `https://studio.genlayer.com/api`, chain ID `61999`. No live contract execution, genuine network validator consensus, or rollback has been verified. **ProofPulse has not been deployed.**
 
-See [Project Vision](docs/PROJECT_VISION.md), [Development Roadmap](docs/DEVELOPMENT_ROADMAP.md), and the [Stage 0 Report](docs/STAGE_0_REPORT.md) for product scope, feasibility findings, and readiness gates.
+See [Development Roadmap](docs/DEVELOPMENT_ROADMAP.md), [Contract Architecture](docs/CONTRACT_ARCHITECTURE.md), [Stage 3/4 Implementation](docs/STAGE_3_4_IMPLEMENTATION.md), and [Final Readiness Report](docs/FINAL_READINESS_REPORT.md).

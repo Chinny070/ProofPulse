@@ -44,6 +44,7 @@ class ProofPulse(gl.Contract):
     obligation_count: u32
     verification_counts: TreeMap[str, u32]
     verification_records: TreeMap[str, str]
+    verification_ids_by_sequence: TreeMap[str, str]
     latest_verification_records: TreeMap[str, str]
     total_verification_count: u32
 
@@ -190,6 +191,41 @@ class ProofPulse(gl.Contract):
         if self.total_verification_count >= MAX_TOTAL_VERIFICATIONS:
             raise gl.vm.UserError("contract verification capacity reached")
 
+        observed_at = self._transaction_timestamp()
+        registered_at = int(self.registered_at[obligation_id])
+        if observed_at < registered_at:
+            raise gl.vm.UserError("observation timestamp precedes obligation registration")
+        observation_period = int(self.observation_periods[obligation_id])
+        deadline = int(self.deadlines[obligation_id])
+        if observation_period and (deadline == 0 or observed_at <= deadline):
+            observation_window = (observed_at - registered_at) // observation_period
+            if current_count > u32(0):
+                latest = json.loads(self.latest_verification_records[obligation_id])
+                latest_window = latest.get("observation_window", -1)
+                if latest_window >= 0 and observation_window <= latest_window:
+                    raise gl.vm.UserError("an observation already exists for this window or a later window")
+                # Even if callers provide fresh IDs, only one accepted sample may occupy a time window.
+                for sequence in range(1, int(current_count) + 1):
+                    previous_id = self.verification_ids_by_sequence.get(
+                        self._sequence_key(obligation_id, sequence), ""
+                    )
+                    if previous_id == "":
+                        raise gl.vm.UserError("verification history index is incomplete")
+                    previous = json.loads(
+                        self.verification_records[obligation_id + "|" + previous_id]
+                    )
+                    if previous.get("observation_window", -1) == observation_window:
+                        raise gl.vm.UserError("an observation already exists for this window")
+        else:
+            observation_window = -1
+
+        if deadline == 0:
+            deadline_evaluation = "NO_DEADLINE"
+        elif observed_at <= deadline:
+            deadline_evaluation = "ON_OR_BEFORE_DEADLINE"
+        else:
+            deadline_evaluation = "AFTER_DEADLINE"
+
         requirements = json.loads(self.requirements_json[obligation_id])
         approved_sources = json.loads(self.sources_json[obligation_id])
         if not self._all_approved_urls_valid(approved_sources):
@@ -236,7 +272,13 @@ class ProofPulse(gl.Contract):
 
         sequence = u32(current_count + u32(1))
         record = self._build_verification_record(
-            obligation_id, verification_id, sequence, payload
+            obligation_id,
+            verification_id,
+            sequence,
+            payload,
+            observation_window,
+            observed_at,
+            deadline_evaluation,
         )
         encoded_record = json.dumps(record, ensure_ascii=False, separators=(",", ":"))
         if len(encoded_record.encode("utf-8")) > MAX_RECORD_BYTES:
@@ -244,6 +286,9 @@ class ProofPulse(gl.Contract):
 
         # Storage writes occur only after the nondeterministic result is accepted.
         self.verification_records[record_key] = encoded_record
+        self.verification_ids_by_sequence[
+            self._sequence_key(obligation_id, int(sequence))
+        ] = verification_id
         self.latest_verification_records[obligation_id] = encoded_record
         self.verification_counts[obligation_id] = sequence
         self.total_verification_count = u32(self.total_verification_count + u32(1))
@@ -270,6 +315,100 @@ class ProofPulse(gl.Contract):
         if record == "":
             raise gl.vm.UserError("verification record does not exist")
         return record
+
+    @gl.public.view
+    def get_pocc_summary(self, obligation_id: str) -> str:
+        """Summarize completed, sampled observation windows without implying continuity."""
+        self._require_registered(obligation_id)
+        period = int(self.observation_periods[obligation_id])
+        if period == 0:
+            raise gl.vm.UserError("Proof of Continuing Compliance requires an observation period")
+
+        registered_at = int(self.registered_at[obligation_id])
+        now = self._transaction_timestamp()
+        deadline = int(self.deadlines[obligation_id])
+        cutoff = min(now, deadline) if deadline else now
+        due_windows = 0 if cutoff < registered_at else ((cutoff - registered_at) // period) + 1
+
+        count = int(self.verification_counts.get(obligation_id, u32(0)))
+        windows = []
+        seen = set()
+        has_violation = False
+        has_pending = False
+        has_uncertainty = False
+        for sequence in range(1, count + 1):
+            verification_id = self.verification_ids_by_sequence.get(
+                self._sequence_key(obligation_id, sequence), ""
+            )
+            if verification_id == "":
+                has_uncertainty = True
+                continue
+            record = json.loads(
+                self.verification_records[obligation_id + "|" + verification_id]
+            )
+            window_index = record.get("observation_window", -1)
+            if window_index < 0 or window_index >= due_windows:
+                continue
+            if window_index in seen:
+                has_uncertainty = True
+                continue
+            seen.add(window_index)
+            outcome = record["outcome"]
+            has_violation = has_violation or outcome == "VIOLATED"
+            has_pending = has_pending or outcome == "PENDING"
+            has_uncertainty = has_uncertainty or outcome == "INCONCLUSIVE"
+            windows.append(
+                {
+                    "window_index": window_index,
+                    "verification_id": verification_id,
+                    "sequence": sequence,
+                    "outcome": outcome,
+                    "observed_at": record["observed_at"],
+                    "evidence_manifest_sha256": record["evidence_manifest_sha256"],
+                }
+            )
+
+        missing = due_windows - len(seen)
+        if has_violation:
+            aggregate = "VIOLATED"
+        elif due_windows == 0:
+            aggregate = "PENDING"
+        elif missing or has_uncertainty:
+            aggregate = "INCONCLUSIVE"
+        elif has_pending:
+            aggregate = "PENDING"
+        else:
+            aggregate = "FULFILLED"
+
+        occupied = sorted(seen)
+        cursor = 0
+        first_missing = -1
+        for occupied_index in occupied:
+            if occupied_index > cursor:
+                first_missing = cursor
+                break
+            cursor = occupied_index + 1
+        if first_missing < 0 and cursor < due_windows:
+            first_missing = cursor
+
+        return json.dumps(
+            {
+                "obligation_id": obligation_id,
+                "policy_version": 1,
+                "observation_period_seconds": period,
+                "as_of_timestamp": now,
+                "through_timestamp": cutoff,
+                "due_window_count": due_windows,
+                "observed_window_count": len(seen),
+                "missing_window_count": missing,
+                "first_missing_window": first_missing,
+                "aggregate_outcome": aggregate,
+                "claim_scope": "sampled observation windows only; no claim is made about conditions between observations",
+                "windows": windows,
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
 
     def _validate_verification_id(self, verification_id: str) -> None:
         if (
@@ -323,28 +462,40 @@ class ProofPulse(gl.Contract):
                     status_code = int(response.status)
                 body = response.body
                 if not isinstance(body, bytes):
-                    evidence.append(self._evidence_ref(url, "UNAVAILABLE", status_code, "", ""))
+                    evidence.append(self._evidence_ref(url, "UNAVAILABLE", status_code, "", "", 0))
                     continue
                 if len(body) > MAX_EVIDENCE_BODY_BYTES or total_bytes + len(body) > MAX_TOTAL_EVIDENCE_BYTES:
-                    evidence.append(self._evidence_ref(url, "OVERSIZED", status_code, "", ""))
+                    evidence.append(
+                        self._evidence_ref(url, "OVERSIZED", status_code, "", "", len(body))
+                    )
                     continue
                 try:
                     text = body.decode("utf-8")
                 except Exception:
-                    evidence.append(self._evidence_ref(url, "UNAVAILABLE", status_code, "", ""))
+                    evidence.append(
+                        self._evidence_ref(url, "UNAVAILABLE", status_code, "", "", len(body))
+                    )
                     continue
                 if status_code < 200 or status_code >= 300:
-                    evidence.append(self._evidence_ref(url, "HTTP_ERROR", status_code, "", ""))
+                    evidence.append(
+                        self._evidence_ref(url, "HTTP_ERROR", status_code, "", "", len(body))
+                    )
                     continue
                 total_bytes += len(body)
                 digest = hashlib.sha256(body).hexdigest()
-                evidence.append(self._evidence_ref(url, "OK", status_code, digest, text))
+                evidence.append(self._evidence_ref(url, "OK", status_code, digest, text, len(body)))
             except Exception:
-                evidence.append(self._evidence_ref(url, "UNAVAILABLE", 0, "", ""))
+                evidence.append(self._evidence_ref(url, "UNAVAILABLE", 0, "", "", 0))
         return evidence
 
     def _evidence_ref(
-        self, url: str, retrieval: str, http_status: int, digest: str, body: str
+        self,
+        url: str,
+        retrieval: str,
+        http_status: int,
+        digest: str,
+        body: str,
+        body_bytes: int,
     ) -> dict:
         return {
             "url": url,
@@ -352,6 +503,7 @@ class ProofPulse(gl.Contract):
             "http_status": http_status,
             "sha256": digest,
             "body": body,
+            "body_bytes": body_bytes,
         }
 
     def _build_evaluation_prompt(self, requirements: list[str], evidence: list[dict]) -> str:
@@ -399,7 +551,12 @@ class ProofPulse(gl.Contract):
         for index, item in enumerate(raw_assessments):
             if not isinstance(item, dict) or set(item.keys()) != required_keys:
                 return None
-            if item.get("requirement_index") != index:
+            requirement_index = item.get("requirement_index")
+            if (
+                not isinstance(requirement_index, int)
+                or isinstance(requirement_index, bool)
+                or requirement_index != index
+            ):
                 return None
             status = item.get("status")
             evidence_type = item.get("evidence_type")
@@ -493,10 +650,13 @@ class ProofPulse(gl.Contract):
                         item["http_status"],
                         item["sha256"],
                         item.get("body", ""),
+                        item.get("body_bytes", len(item.get("body", "").encode("utf-8"))),
                     )
                 )
             else:
-                evidence.append(self._evidence_ref(item, "UNSUPPORTED_REFERENCE", 0, "", ""))
+                evidence.append(
+                    self._evidence_ref(item, "UNSUPPORTED_REFERENCE", 0, "", "", 0)
+                )
         assessments = []
         for index in range(len(requirements)):
             assessments.append(
@@ -535,7 +695,7 @@ class ProofPulse(gl.Contract):
             return False
 
         total_body_bytes = 0
-        evidence_keys = {"url", "retrieval", "http_status", "sha256", "body"}
+        evidence_keys = {"url", "retrieval", "http_status", "sha256", "body", "body_bytes"}
         for index, item in enumerate(evidence):
             if (
                 not isinstance(item, dict)
@@ -550,6 +710,11 @@ class ProofPulse(gl.Contract):
                 return False
             if status_code < 0 or status_code > 599:
                 return False
+            received_bytes = item.get("body_bytes")
+            if not isinstance(received_bytes, int) or isinstance(received_bytes, bool) or received_bytes < 0:
+                return False
+            if item.get("retrieval") in ("HTTP_ERROR", "UNAVAILABLE") and received_bytes > MAX_EVIDENCE_BODY_BYTES:
+                return False
             if item.get("retrieval") == "OK":
                 if not isinstance(item.get("body"), str):
                     return False
@@ -560,6 +725,7 @@ class ProofPulse(gl.Contract):
                     or status_code >= 300
                     or len(body_bytes) > MAX_EVIDENCE_BODY_BYTES
                     or total_body_bytes > MAX_TOTAL_EVIDENCE_BYTES
+                    or received_bytes != len(body_bytes)
                 ):
                     return False
                 if item.get("sha256") != hashlib.sha256(body_bytes).hexdigest():
@@ -567,50 +733,13 @@ class ProofPulse(gl.Contract):
             elif item.get("body") != "" or item.get("sha256") != "":
                 return False
 
-        status_assessments = []
-        for index, item in enumerate(assessments):
-            if not isinstance(item, dict) or item.get("requirement_index") != index:
-                return False
-            status = item.get("status")
-            if status not in VALID_ASSESSMENTS:
-                return False
-            source_index = item.get("source_index")
-            quote = item.get("quote")
-            conflict_index = item.get("conflicting_source_index")
-            conflict_quote = item.get("conflicting_quote")
-            evidence_type = item.get("evidence_type")
-            if status in ("MET", "NOT_MET", "PENDING"):
-                if evidence_type not in ("DIRECT_OBSERVATION", "SOURCE_CLAIM"):
-                    return False
-                if not self._quote_is_grounded(source_index, quote, evidence):
-                    return False
-            elif status == "CONFLICTED":
-                if evidence_type != "CONTRADICTION":
-                    return False
-                if source_index == conflict_index or not self._quote_is_grounded(source_index, quote, evidence):
-                    return False
-                if not self._quote_is_grounded(conflict_index, conflict_quote, evidence):
-                    return False
-            elif status == "UNKNOWN":
-                if evidence_type not in ("UNSUPPORTED", "UNAVAILABLE"):
-                    return False
-                if source_index != -1 or quote != "" or conflict_index != -1 or conflict_quote != "":
-                    return False
-            status_assessments.append(status)
-
-        if any(item["retrieval"] != "OK" for item in evidence):
-            derived_outcome = "INCONCLUSIVE"
-        elif any(status in ("UNKNOWN", "CONFLICTED") for status in status_assessments):
-            derived_outcome = "INCONCLUSIVE"
-        elif any(status == "PENDING" for status in status_assessments):
-            derived_outcome = "PENDING"
-        elif all(status == "MET" for status in status_assessments):
-            derived_outcome = "FULFILLED"
-        elif any(status == "NOT_MET" for status in status_assessments):
-            derived_outcome = "VIOLATED"
-        else:
-            derived_outcome = "INCONCLUSIVE"
-        return payload["outcome"] == derived_outcome
+        normalized = self._normalize_assessment(
+            {"assessments": assessments, "explanation": explanation}, requirements, evidence
+        )
+        if normalized is None:
+            return False
+        derived = self._payload_from_assessments(evidence, normalized, requirements)
+        return payload["outcome"] == derived["outcome"]
 
     def _equivalence_signature(self, payload: dict) -> str:
         decisive_assessments = []
@@ -634,28 +763,85 @@ class ProofPulse(gl.Contract):
         )
 
     def _build_verification_record(
-        self, obligation_id: str, verification_id: str, sequence: u32, payload: dict
+        self,
+        obligation_id: str,
+        verification_id: str,
+        sequence: u32,
+        payload: dict,
+        observation_window: int,
+        observed_at: int,
+        deadline_evaluation: str,
     ) -> dict:
         evidence_references = []
-        for item in payload["evidence"]:
+        for index, item in enumerate(payload["evidence"]):
             evidence_references.append(
                 {
+                    "source_index": index,
                     "url": item["url"],
                     "retrieval": item["retrieval"],
                     "http_status": item["http_status"],
                     "sha256": item["sha256"],
+                    "body_bytes": item["body_bytes"],
                 }
             )
+
+        policy_sha256 = self._policy_commitment(
+            json.loads(self.requirements_json[obligation_id]),
+            json.loads(self.sources_json[obligation_id]),
+        )
+        commitment_payload = {
+            "schema_version": 1,
+            "obligation_id": obligation_id,
+            "verification_id": verification_id,
+            "sequence": int(sequence),
+            "policy_sha256": policy_sha256,
+            "observation_window": observation_window,
+            "outcome": payload["outcome"],
+            "evidence": evidence_references,
+            "assessments": payload["assessments"],
+            "observed_at": observed_at,
+            "deadline_evaluation": deadline_evaluation,
+        }
+        evidence_manifest_sha256 = hashlib.sha256(
+            json.dumps(
+                commitment_payload,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
         return {
             "obligation_id": obligation_id,
             "verification_id": verification_id,
             "sequence": int(sequence),
+            "schema_version": 1,
+            "policy_version": 1,
+            "policy_sha256": policy_sha256,
+            "observation_window": observation_window,
+            "deadline_evaluation": deadline_evaluation,
             "outcome": payload["outcome"],
             "evidence": evidence_references,
             "assessments": payload["assessments"],
             "explanation": payload["explanation"],
-            "observed_at": self._transaction_timestamp(),
+            "observed_at": observed_at,
+            "evidence_manifest_sha256": evidence_manifest_sha256,
         }
+
+    def _sequence_key(self, obligation_id: str, sequence: int) -> str:
+        return obligation_id + "|" + str(sequence)
+
+    def _policy_commitment(self, requirements: list[str], approved_sources: list[str]) -> str:
+        canonical_policy = json.dumps(
+            {
+                "policy_version": 1,
+                "requirements": requirements,
+                "approved_sources": approved_sources,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return hashlib.sha256(canonical_policy).hexdigest()
 
     def _validate_identifier(self, obligation_id: str) -> None:
         if not isinstance(obligation_id, str) or len(obligation_id.encode("utf-8")) > MAX_ID_BYTES:

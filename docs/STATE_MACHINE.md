@@ -24,17 +24,21 @@ Stage 2's `PENDING` outcome means approved evidence explicitly shows an unfinish
 
 ## Observation transitions
 
-Stage 2 uses a unique `(obligation_id, verification_id)` key and monotonically increments a bounded per-obligation sequence:
+Stage 2 uses a unique `(obligation_id, verification_id)` key and monotonically increments a bounded per-obligation sequence. Stages 3/4 also assign a zero-based window from transaction time and the configured observation period:
 
 - a repeated verification ID → reject before external calls and do not append;
-- a new verification ID → append only after the nondeterministic validator callback accepts and deterministic record bounds pass;
+- a repeated occupied observation window → reject before external calls, even with a different ID;
+- a later window → append only after the nondeterministic result returns and deterministic schema/record bounds pass;
+- an attempt to fill an earlier window after a later one → reject;
 - conflicting sources or insufficient evidence → `INCONCLUSIVE`, not `VIOLATED`;
 - affirmative evidence of a missed requirement with no unknown, pending, or contradiction → `VIOLATED`;
-- periodic-window ordering and continuity aggregation remain future Stage 4 behavior.
+- a record-size failure before append → no verification record or count change in Direct Mode; actual consensus-rejection rollback remains unverified.
+
+Window 0 begins at registration. Every `observation_period_seconds` after that advances the index. An accepted `INCONCLUSIVE` result occupies its window; retrying requires a later period.
 
 ## Deadlines and timestamps
 
-Use transaction-pinned time for contract submission/observation time and arithmetic. A submitted claim of source publication time is metadata from the source, not trusted chain time. A deadline result should distinguish “observation submitted after deadline” (deterministic comparison) from “evidence proves timely real-world performance” (requires authenticated evidence). The contract cannot infer current wall-clock at validator replay, and documentation reports no block number/hash in transaction context.
+Use transaction-pinned time for registration, observation, window arithmetic, deadline relation, and PoCC as-of time. The stored deadline relation says only whether the verification transaction was on, before, or after the configured deadline; it does not prove when performance occurred. A submitted publication date is not trusted. The reviewed context does not expose a block number/hash in the fields used here.
 
 ## Authorization gates
 
@@ -52,11 +56,12 @@ Every state-changing method must check the relevant stored role against `gl.mess
 
 ## PoCC aggregate transitions
 
-The aggregate is a deterministic view of recorded observations under one specified policy version/range, not an independently trusted AI label:
+`get_pocc_summary` is a deterministic, bounded read over at most eight accepted records. It counts expected windows from registration through the earlier of the as-of timestamp and configured deadline, and reports due/observed/missing counts, first missing index, each sampled outcome, and the manifest commitment:
 
-- all required windows present and `FULFILLED` → “all required recorded windows fulfilled”;
-- any `VIOLATED` window → violation present in the covered sample;
-- any `INCONCLUSIVE`/missing/`PENDING` window → coverage incomplete;
-- policy version change or lifecycle epoch change → split coverage; do not combine without explicit migration semantics.
+- all due windows present and `FULFILLED` → aggregate `FULFILLED`, scoped to those sampled windows;
+- any recorded `VIOLATED` window → aggregate `VIOLATED`, with gaps still reported;
+- missing windows or an `INCONCLUSIVE` sample → `INCONCLUSIVE`, unless a violation was observed;
+- complete windows with a `PENDING` sample → `PENDING`;
+- no due windows → `PENDING`.
 
-This deliberately avoids the stronger and unsupported claim that periodic checks prove continuous real-world state between observation times.
+This deliberately avoids the unsupported claim that periodic checks prove real-world state between observations. No trusted continuous sensor or authenticated source-freshness timestamp is available.

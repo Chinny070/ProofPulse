@@ -2,6 +2,16 @@
 
 This document records the target architecture. Stages 1 and 2 implement the bounded deterministic registry/lifecycle and a conditional local evidence-verification path; see [Stage 1 Implementation](STAGE_1_IMPLEMENTATION.md) and [Stage 2 Implementation](STAGE_2_IMPLEMENTATION.md). Live consensus and Studionet integration remain unverified.
 
+## Current Stage 3/4 implementation
+
+The implementation now uses record schema version 1 with a canonical SHA-256 commitment to policy version 1 and a commitment to each verification manifest. Records identify each configured source by index and exact URL, record returned body-byte counts, observation-window index, transaction-pinned observation timestamp, and whether that observation was before/after a configured deadline. No source publication timestamp is trusted. The public `get_pocc_summary(obligation_id)` view computes only a bounded aggregate over at most eight per-obligation records.
+
+The initial observation window begins at registration (window index 0); each later interval increments the index by `observation_period_seconds`. Due windows are counted through the earlier of the view's transaction timestamp and the configured deadline, if any. At most one accepted verification may occupy each window, and later windows cannot be followed by a new verification for an earlier window. A failed retrieval can therefore occupy that period with an accepted `INCONCLUSIVE` record. This prevents repeated submissions from inflating one sample window, but it also means a retry waits until a later period.
+
+PoCC returns `FULFILLED` only when every due sampled window has an accepted `FULFILLED` result; it reports missing windows explicitly. A recorded `VIOLATED` observation remains a violation even if other windows are missing. Uncertainty, conflict, or gaps prevent an overall fulfillment claim. The result explicitly limits its scope to sampled windows and makes no claim about conditions between them. This is not proof of uninterrupted compliance.
+
+The code computes commitments and aggregates deterministically. External retrieval and model interpretation remain nondeterministic and are subject to the existing custom validator. These additions are covered by Direct Mode tests only; no target-runtime storage cost, transaction consensus, or rollback guarantee has been measured.
+
 ## Design decisions
 
 | Decision | Rationale | Assumptions | Limitations |

@@ -94,4 +94,8 @@ No contract or test code changes were warranted by evidence available in this en
 
 **CONDITIONAL PASS.** Existing Direct Mode behavior, cached GenVM lint/semantic checks, and public schema extraction pass. Runtime compatibility remains mixed and unconfirmed; local Studio could not be inspected; no genuine web/LLM, leader/validator, transaction acceptance/rejection, persistence, or rollback evidence exists. This is not a deployment readiness decision.
 
-Stage 2B stops here. Do not begin Stage 3 or implement Proof of Continuing Compliance without the user's next instruction.
+At the time this Stage 2B report was written, it ended validation and no Stage 3/4 work had been approved. The repository later advanced by explicit user instruction; see the current [Stage 3/4 Implementation](STAGE_3_4_IMPLEMENTATION.md) and [Final Readiness Report](FINAL_READINESS_REPORT.md). This historical report remains unchanged in scope and must not be read as the repository's current implementation status.
+
+## Subsequent repository status (2026-10-13)
+
+The earlier phrase “Stage 1 remains unstarted” in the agent's Stage 2B final message was an error: Stage 1 and Stage 2 are present in the source and committed history before this report. The user subsequently authorized completing the remaining roadmap. Stage 3/4 provenance commitments, observation windows, and bounded PoCC summary were added after this report. The Stage 2B execution findings remain valid: no real validator consensus, network transaction rollback, or live evidence path was proven by the Direct Mode work.
