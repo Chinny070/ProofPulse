@@ -4,7 +4,7 @@ This roadmap describes planned work. Stage 0 documentation is complete with a co
 
 ## Stage 0: Technical feasibility and architecture
 
-Confirm the supported GenLayer Intelligent Contract programming model, execution limits, validator consensus behavior, web and AI interfaces, and the available Studionet workflow. Define the obligation and evidence data model, outcome semantics, threat model, and a minimal architecture that respects the standalone contract boundary. Record feasibility findings and unresolved constraints before implementation. **Status:** documentation complete; local CLI and runtime compatibility remain unverified. See [Stage 0 Report](STAGE_0_REPORT.md).
+Confirm the supported GenLayer Intelligent Contract programming model, execution limits, validator consensus behavior, web and AI interfaces, and the available Studionet workflow. Define the obligation and evidence data model, outcome semantics, threat model, and a minimal architecture that respects the standalone contract boundary. Record feasibility findings and unresolved constraints before implementation. **Status:** architecture documentation and deterministic Direct Mode fixture complete; conditional go. The real-profile CLI still needs a normal-shell check, and stable Studionet toolchain compatibility is not yet established. See [Stage 0 Report](STAGE_0_REPORT.md) and [Stage 0B Environment Report](STAGE_0B_ENVIRONMENT_REPORT.md).
 
 ## Stage 1: Obligation registry and lifecycle
 
