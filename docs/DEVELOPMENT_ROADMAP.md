@@ -1,10 +1,10 @@
 # ProofPulse Development Roadmap
 
-This roadmap describes planned work. No stage beyond repository initialization is represented as complete, and the Intelligent Contract has not been deployed.
+This roadmap describes planned work. Stage 0 documentation is complete with a conditional-go recommendation; no contract implementation or deployment is claimed.
 
 ## Stage 0: Technical feasibility and architecture
 
-Confirm the supported GenLayer Intelligent Contract programming model, execution limits, validator consensus behavior, web and AI interfaces, and the available Studionet workflow. Define the obligation and evidence data model, outcome semantics, threat model, and a minimal architecture that respects the standalone contract boundary. Record feasibility findings and unresolved constraints before implementation.
+Confirm the supported GenLayer Intelligent Contract programming model, execution limits, validator consensus behavior, web and AI interfaces, and the available Studionet workflow. Define the obligation and evidence data model, outcome semantics, threat model, and a minimal architecture that respects the standalone contract boundary. Record feasibility findings and unresolved constraints before implementation. **Status:** documentation complete; local CLI and runtime compatibility remain unverified. See [Stage 0 Report](STAGE_0_REPORT.md).
 
 ## Stage 1: Obligation registry and lifecycle
 

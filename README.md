@@ -26,6 +26,6 @@ The project is designed for GenLayer Intelligent Contracts and GenLayer's valida
 
 ## Development status
 
-Repository initialization is in progress. The repository currently contains planning documentation and project structure only. No contract implementation, test results, or deployment verification is claimed. **ProofPulse has not been deployed.**
+Stage 0 technical feasibility and architecture documentation is complete with a **conditional go** recommendation. No contract implementation, contract execution, successful tests, or deployment verification is claimed. **ProofPulse has not been deployed.**
 
-See [Project Vision](docs/PROJECT_VISION.md) and [Development Roadmap](docs/DEVELOPMENT_ROADMAP.md) for the product scope and planned stages.
+See [Project Vision](docs/PROJECT_VISION.md), [Development Roadmap](docs/DEVELOPMENT_ROADMAP.md), and the [Stage 0 Report](docs/STAGE_0_REPORT.md) for product scope, feasibility findings, and readiness gates.
