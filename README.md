@@ -4,17 +4,22 @@ ProofPulse is a standalone GenLayer Intelligent Contract for evaluating real-wor
 
 ## Purpose
 
-ProofPulse is intended to make obligation status decisions more transparent and repeatable. A user defines an obligation and its requirements, submits or identifies evidence, and requests an evaluation. The contract is planned to consider relevant evidence and return a reasoned verification outcome through GenLayer's consensus process.
+ProofPulse aims to make obligation status decisions more transparent and repeatable. Owners register an obligation, its requirements, and an immutable list of approved sources. They can request an AI-assisted verification of those sources; actual multi-validator behavior has not yet been exercised in this repository.
+
+## Implemented capabilities
+
+- Register obligations, their requirements, owners, and relevant lifecycle state.
+- Retrieve only exact HTTPS URLs from an obligation's immutable approved-source list.
+- Assess evidence against requirements with bounded AI output and independently rerun assessment in a custom validator callback.
+- Record `FULFILLED`, `VIOLATED`, `INCONCLUSIVE`, or evidence-level `PENDING`, with bounded source references, body hashes, excerpts, and transaction timestamps.
+- Keep verification history append-only and bounded.
 
 ## Planned capabilities
 
-- Register obligations, their requirements, owners, and relevant lifecycle state.
-- Evaluate submitted evidence against an obligation's defined requirements with AI-assisted, web-informed analysis.
-- Preserve evidence provenance and observation timestamps for later review.
-- Record successive observations and evaluate compliance across multiple periods.
-- Return explicit outcomes and supporting reasoning that validators can assess.
+- Evidence freshness and fuller provenance rules.
+- Proof of Continuing Compliance (PoCC) across defined observation periods.
 
-Stage 1 implements the deterministic obligation registry and lifecycle described in [Stage 1 Implementation](docs/STAGE_1_IMPLEMENTATION.md). Its local readiness is **conditional pass**: 12 Direct Mode tests and GenVM lint/semantic validation pass, while stable Studionet compatibility remains unverified. Evidence evaluation, provenance records, observation history, four-valued verification outcomes, and PoCC remain planned capabilities, not implemented behavior.
+Stage 1 implements the deterministic registry and lifecycle. Stage 2 implements owner-triggered evidence assessment and records. Stage 2 has a **conditional pass** based on Direct Mode mocks and local GenVM linting; real validator consensus and stable Studionet execution remain unverified. See [Stage 1 Implementation](docs/STAGE_1_IMPLEMENTATION.md) and [Stage 2 Implementation](docs/STAGE_2_IMPLEMENTATION.md). PoCC remains planned and is not implemented.
 
 ## Proof of Continuing Compliance
 
@@ -26,6 +31,6 @@ The project is designed for GenLayer Intelligent Contracts and GenLayer's valida
 
 ## Development status
 
-Stage 0 and Stage 0B documentation are complete with a **conditional go** recommendation for environment readiness. Stage 1 deterministic registry implementation and Direct Mode tests are complete. Stable Studionet compatibility remains unverified. **ProofPulse has not been deployed.**
+Stages 0 and 0B documentation are complete; Stages 1 and 2 are implemented with conditional local readiness. Real consensus and stable Studionet compatibility remain unverified. **ProofPulse has not been deployed.**
 
 See [Project Vision](docs/PROJECT_VISION.md), [Development Roadmap](docs/DEVELOPMENT_ROADMAP.md), and the [Stage 0 Report](docs/STAGE_0_REPORT.md) for product scope, feasibility findings, and readiness gates.

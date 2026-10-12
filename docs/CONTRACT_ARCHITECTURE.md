@@ -1,6 +1,6 @@
 # ProofPulse Contract Architecture (Stage 0)
 
-This document records the Stage 0 target architecture. Stage 1 implements only the bounded deterministic registry and lifecycle; see [Stage 1 Implementation](STAGE_1_IMPLEMENTATION.md) for its ABI and test evidence.
+This document records the target architecture. Stages 1 and 2 implement the bounded deterministic registry/lifecycle and a conditional local evidence-verification path; see [Stage 1 Implementation](STAGE_1_IMPLEMENTATION.md) and [Stage 2 Implementation](STAGE_2_IMPLEMENTATION.md). Live consensus and Studionet integration remain unverified.
 
 ## Design decisions
 
@@ -19,9 +19,9 @@ This document records the Stage 0 target architecture. Stage 1 implements only t
 2. **Immutable policy versions.** The Stage 1 contract stores initial requirement descriptions and opaque approved-source references as immutable version 1. Future policies may define bounded source rules, evaluation windows, evidence limits, freshness constraints, and output schemas. Policy revision is deferred until version migration and authorization semantics are specified; do not infer that the Stage 1 registry implements revisions or policy digests.
 3. **Approved source set.** Policy records allowed schemes/hosts/path patterns and expected content types/fields where practicable. Do not accept arbitrary URLs as authority. DNS/IP rebinding and redirects remain a retrieval-layer risk requiring tool/runtime review.
 4. **Evidence manifest.** Bounded evidence records contain requested URL/source ID, normalized final URL if available, retrieval outcome, transaction observation time, source-claimed publication time (separate and explicitly untrusted), content digest, evidence type, and concise extracted facts. Keep raw content outside contract storage unless a later feasibility measurement justifies bounded on-chain storage.
-5. **Nondeterministic evaluator.** A local callback inside a write method fetches only policy-approved inputs through `gl.nondet.web.get` or `.render`, then calls `gl.nondet.exec_prompt` for a constrained classification/extraction task. It returns a small, schema-checked candidate. No storage writes occur inside this block.
-6. **Consensus validator.** Validators independently re-fetch/re-evaluate where practical or independently assess the leader candidate against the same approved evidence and explicit criteria. They validate substantive facts and policy outcomes, not merely JSON shape. Deterministic fields (IDs, policy digest, window, source allowlist, timestamp bounds, evidence digest format) are checked in ordinary code.
-7. **Deterministic commit path.** Once the non-deterministic result passes the equivalence rule, deterministic code validates input bounds, caller rights, current lifecycle, non-duplicate observation ID/window, and timestamp/deadline rules, then appends exactly one immutable observation and updates indexes/counters.
+5. **Nondeterministic evaluator.** Stage 2 fetches only exact HTTPS URLs stored in immutable source references through `gl.nondet.web.get`, then calls `gl.nondet.exec_prompt(..., response_format="json")`. It returns a bounded candidate with requirement assessments and exact source quotes. Storage writes occur after the nondeterministic callback returns.
+6. **Consensus validator.** Stage 2 uses the documented `gl.vm.run_nondet_unsafe` custom callback to independently re-fetch/re-evaluate and require agreement on outcome, per-requirement status, evidence kind, source indexes, and exact quotes. Direct Mode callback simulations pass; actual validators have not been exercised.
+7. **Deterministic commit path.** After the nondeterministic result returns, ordinary code checks owner/lifecycle/idempotency, derives the outcome, checks record and count bounds, then appends the record and updates indexes/counters. A true network consensus rejection/rollback remains unverified locally.
 8. **Read views.** Bounded `@gl.public.view` methods expose obligation summaries, policy version/digest, individual observation records, and paginated history. Avoid an unbounded “return all records” view.
 
 ## Result model
@@ -51,4 +51,4 @@ PoCC is an aggregate over policy-defined observation windows. Each window can be
 
 ## Rationale and open design choices
 
-This design favors conservative evidence status, bounded state, and transparent history over storing large raw evidence. Stage 1 must decide canonical policy encoding and IDs, caps, source allowlist syntax, actor roles, deadline/grace semantics, content digest format, exact consensus validator strategy, and how non-final transaction lifecycle maps to `PENDING`. These depend on runtime measurements and product requirements.
+This design favors conservative evidence status, bounded state, and transparent history over storing large raw evidence. Stages 1 and 2 now define the initial policy JSON encoding, IDs and caps, owner-only verification/closure, exact HTTPS source-reference convention, SHA-256 body commitment, custom validator criteria, and evidence-level `PENDING` semantics. Remaining decisions include verified host redirect and transport limits, measured target-network storage/compute costs, source freshness/authenticity policy, and Stage 4 observation-window/deduplication rules.

@@ -1,6 +1,6 @@
 # ProofPulse Development Roadmap
 
-This roadmap tracks implemented and planned work. Stage 0B documented a conditional-go environment result; Stage 1 implementation is local-only and does not establish stable Studionet compatibility or deployment readiness.
+This roadmap tracks implemented and planned work. Stage 0B documented a conditional-go environment result; Stages 1 and 2 have local implementations and tests but do not establish live validator consensus, stable Studionet compatibility, or deployment readiness.
 
 ## Stage 0: Technical feasibility and architecture
 
@@ -8,15 +8,15 @@ Confirm the supported GenLayer Intelligent Contract programming model, execution
 
 ## Stage 1: Obligation registry and lifecycle
 
-Implement deterministic obligation registration, immutable initial requirement/source-reference policy, owner authorization, bounded reads, and owner-only closure. **Status:** complete with conditional pass: 12 Direct Mode tests and GenVM lint/semantic validation pass. See [Stage 1 Implementation](STAGE_1_IMPLEMENTATION.md). Policy revisions, reopening, deletion, transfer, evidence evaluation, and outcome transitions remain deferred. Stable Studionet compatibility is unverified.
+Implement deterministic obligation registration, immutable initial requirement/source-reference policy, owner authorization, bounded reads, and owner-only closure. **Status:** complete with conditional pass: 12 Direct Mode tests and GenVM lint/semantic validation pass. See [Stage 1 Implementation](STAGE_1_IMPLEMENTATION.md). Policy revisions, reopening, deletion, and transfer remain deferred. Stable Studionet compatibility is unverified.
 
 ## Stage 2: AI-powered evidence verification
 
-Integrate evidence evaluation using the supported GenLayer capabilities. Define bounded, structured inputs and outputs, explicit uncertainty handling, and safeguards for untrusted evidence and web content. Verify that decisions are tied to stated requirements and do not silently treat missing evidence as success.
+Integrate evidence evaluation using the supported GenLayer capabilities. Define bounded, structured inputs and outputs, explicit uncertainty handling, and safeguards for untrusted evidence and web content. Verify that decisions are tied to stated requirements and do not silently treat missing evidence as success. **Status:** implemented with conditional pass. Direct Mode mocks cover retrieval, AI outputs, deterministic outcome derivation, and the custom validator callback; no live web/AI or real validator consensus has run. See [Stage 2 Implementation](STAGE_2_IMPLEMENTATION.md).
 
 ## Stage 3: Evidence provenance and timestamps
 
-Record references to evidence, source information where available, observation timestamps, and the relationship between evidence and each evaluation. Define how stale, unavailable, updated, or conflicting sources are represented and how the record supports later inspection.
+Extend Stage 2 records with the full evidence-provenance model, freshness rules, and robust source/observation linking. Stage 2 already records exact approved URL references, response SHA-256 commitments, transaction observation timestamps, and requirement assessments, but does not authenticate sources or publication dates.
 
 ## Stage 4: Proof of Continuing Compliance
 

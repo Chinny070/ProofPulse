@@ -1,6 +1,6 @@
 # ProofPulse State Machine (Stage 1 implementation plus future evaluation design)
 
-Obligation transitions below are implemented in Stage 1. Evaluation and observation transitions remain proposed future behavior. State names describe domain state; they are not GenLayer transaction lifecycle statuses.
+Obligation transitions below are implemented in Stage 1. The synchronous evaluation transaction and append-only result record are implemented in Stage 2. State names describe domain state; they are not GenLayer transaction lifecycle statuses.
 
 ## Obligation lifecycle
 
@@ -9,29 +9,28 @@ UNREGISTERED --register--> ACTIVE (immutable policy version 1)
 ACTIVE --close by owner--> CLOSED
 ```
 
-Stage 1 implements only these transitions. Policy revision and reopening are deferred: they require explicit version migration, authorization, and audit semantics before implementation. No policy or obligation deletion is allowed. Closed obligations reject lifecycle writes. Verification outcomes remain a separate future state dimension.
+Stage 1 implements only these transitions. Policy revision and reopening are deferred: they require explicit version migration, authorization, and audit semantics before implementation. No policy or obligation deletion is allowed. Closed obligations reject lifecycle writes. Stage 2 verification outcomes are stored separately from this obligation lifecycle.
 
 ## Evaluation lifecycle
 
 ```text
-not submitted --request evaluation--> PENDING
-PENDING --consensus accepts candidate + deterministic checks pass--> FULFILLED | VIOLATED | INCONCLUSIVE
-PENDING --consensus rejects / execution errors--> no committed observation
+ACTIVE --owner requests verification--> consensus-gated evaluation
+consensus accepted + deterministic checks pass --> append FULFILLED | VIOLATED | INCONCLUSIVE | PENDING record
+consensus rejected / execution fails --> no committed record on the actual network
+CLOSED --verification request--> reject
 ```
 
-`PENDING` is a transient domain marker only if it is intentionally stored by a separate deterministic transaction. Otherwise it is inferred from a submitted, not-yet-finalized GenLayer transaction outside contract storage. Do not assume an LLM/web failure can always be caught and converted into a successful write; verify error semantics against the chosen runtime in later tests.
+Stage 2's `PENDING` outcome means approved evidence explicitly shows an unfinished process, while the GenLayer transaction itself has completed. Direct Mode tests exercise the validator callback but do not prove network rollback or consensus behavior. External retrieval/model failures become `INCONCLUSIVE` if the call can complete; uncaught transaction/consensus failure appends no record.
 
 ## Observation transitions
 
-For a unique `(obligation_id, lifecycle_epoch, policy_version, window_id)`:
+Stage 2 uses a unique `(obligation_id, verification_id)` key and monotonically increments a bounded per-obligation sequence:
 
-- no prior record → append one terminal observation after consensus: one of the four outcomes;
-- an identical retry using the same idempotency key → return/reference the existing record, do not append again;
-- same window/key but different policy/evidence payload → reject as duplicate conflict;
-- later window → append only if ordering and deadline constraints permit;
-- out-of-order window → reject or mark explicitly out-of-order under a policy-defined rule; never silently reorder;
+- a repeated verification ID → reject before external calls and do not append;
+- a new verification ID → append only after the nondeterministic validator callback accepts and deterministic record bounds pass;
 - conflicting sources or insufficient evidence → `INCONCLUSIVE`, not `VIOLATED`;
-- affirmative evidence of a missed requirement → `VIOLATED`, subject to the immutable policy's criteria.
+- affirmative evidence of a missed requirement with no unknown, pending, or contradiction → `VIOLATED`;
+- periodic-window ordering and continuity aggregation remain future Stage 4 behavior.
 
 ## Deadlines and timestamps
 

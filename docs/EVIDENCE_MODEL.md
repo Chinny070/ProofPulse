@@ -1,6 +1,6 @@
 # ProofPulse Evidence Model (Stage 0)
 
-Evidence is untrusted input. The model below separates an external source's statements from facts the contract can establish deterministically.
+Evidence is untrusted input. Stage 2 implements a bounded subset: exact approved HTTPS URL references, retrieved response bytes, SHA-256 commitments, transaction observation time, and requirement-level cited assessments. This model describes the implementation plus remaining design needs; the contract does not authenticate source statements or publication times.
 
 ## Evidence record proposal
 
@@ -16,11 +16,11 @@ Each bounded manifest item should include:
 - `extract`: bounded, schema-constrained facts relevant to named policy requirements.
 - `provenance_note`: bounded explanation of the source and extraction path.
 
-The public observation links the manifest digest to the obligation ID, immutable policy digest/version, observation window, evaluator result, and consensus transaction reference where available to the client/indexer. Exact GenLayer transaction/block linkage exposed to contract code is limited: transaction context documents no block number or hash.
+The Stage 2 record links the exact approved URL, successful response digest, requirement-level assessment, outcome, verification ID/sequence, and transaction observation timestamp. It does not yet store a policy digest/version, observation window, or block/transaction hash; transaction context does not expose block number or hash.
 
 ## Digest and commitment semantics
 
-Use a domain-separated canonical encoding before hashing, for example a fixed version tag plus length-prefixed UTF-8 fields, then SHA-256. The official GenLayer docs include `hashlib.sha256()` in a contract example, so the algorithm is documented in the environment; exact canonical encoding and execution under ProofPulse's selected pinned runner remain unverified.
+Stage 2 computes SHA-256 over the exact successful UTF-8 response body bytes returned by the Web API. This is a byte commitment, not a domain-separated cross-field manifest encoding. The body hash is locally tested under Direct Mode; live-runner behavior remains unverified.
 
 A digest proves only that later-presented bytes match the committed bytes, assuming the hash and canonicalization are implemented correctly. It does **not** prove source identity, publication time, authorship, truth, or that the content was publicly accessible at the claimed time. A URL is a locator, not a durable archive. If long-term audit requires retrieval, use a separately governed archive or content-addressed store off-contract and record its locator plus digest; that archive is outside the standalone contract's trust guarantee.
 
